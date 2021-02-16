@@ -37,8 +37,10 @@ def start_pipeline(wav):
 
     try:
         LOGGER.info("Запуск сегментации файла '{}'".format(wav_name))
-        segm = segmenter.Segmenter(wav_scp, SEGM_MODEL, SEGM_POST, SEGM_CONF, temp)
-        segments = segm.segment()
+        # segm = segmenter.Segmenter(wav_scp, SEGM_MODEL, SEGM_POST, SEGM_CONF, temp)
+        SEGM.scp = wav_scp # Использование глобального сегментора
+        SEGM.log = temp
+        segments = SEGM.segment()
         LOGGER.info("Завершение сегментации файла '{}'".format(wav_name))
     except:
         terminate_pipeline(True, "Не удалось выполнить сегментацию файла '{}'".format(wav_name))
@@ -49,15 +51,18 @@ def start_pipeline(wav):
 
     try:
         LOGGER.info("Запуск извлечения сегментов из файла '{}'".format(wav_name))
-        wav_segments_scp, utt2spk, spk2utt = segm.extract_segments(segments)
+        wav_segments_scp, utt2spk, spk2utt = SEGM.extract_segments(segments)
         LOGGER.info("Завершение извлечения сегментов из файла '{}'".format(wav_name))
     except:
         terminate_pipeline(True, "Не удалось извлечь сегменты из файла '{}'".format(wav_name))
         return            
     try:
         LOGGER.info("Запуск распознавания файла '{}'".format(wav_name))
-        rec = recognizer.Recognizer(wav_segments_scp, REC_MODEL, REC_GRAPH, REC_WORDS, REC_CONF, REC_ICONF, spk2utt, temp)
-        transcriptions = rec.recognize(wav_stem)
+        # rec = recognizer.Recognizer(wav_segments_scp, REC_MODEL, REC_GRAPH, REC_WORDS, REC_CONF, REC_ICONF, spk2utt, temp)
+        REC.scp = wav_segments_scp # Использование глобального рекогнайзера
+        REC.log = temp
+        REC.spk2utt = spk2utt
+        transcriptions = REC.recognize(wav_stem)
         LOGGER.info("Завершение распознавания файла '{}'".format(wav_name))
     except:
         terminate_pipeline(True, "Не удалось выполнить распознавание файла '{}'".format(wav_name))
@@ -134,6 +139,12 @@ if __name__ == '__main__':
     
     prep = data_preparator.DataPreparator(args.wav, str(OUTPUT_DIR), args.log)
     LOG_DIR, TEMP_DIR, ASS_DIR, ERROR_DIR = prep.create_directories()
+
+    #Segmenter
+    SEGM = segmenter.Segmenter('', SEGM_MODEL, SEGM_POST, SEGM_CONF, '')
+
+    #Recognizer
+    REC = recognizer.Recognizer('', REC_MODEL, REC_GRAPH, REC_WORDS, REC_CONF, REC_ICONF, '', '')
     
     while True:
         wavs = glob.glob(str(WAV_DIR / '*.wav'))
